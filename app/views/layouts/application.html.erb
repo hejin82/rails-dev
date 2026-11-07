@@ -24,6 +24,10 @@
   </head>
 
   <body>
+    <nav class="site-nav">
+      <%= link_to "首页", root_path %>
+      <%= link_to "用户管理", users_path %>
+    </nav>
     <%= yield %>
   </body>
 </html>

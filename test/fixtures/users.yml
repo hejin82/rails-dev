@@ -1,0 +1,15 @@
+# Read about fixtures at https://api.rubyonrails.org/classes/ActiveRecord/FixtureSet.html
+
+normal_user:
+  email: normal@example.com
+  username: normal_user
+  gender: 0
+  birth_date: 1990-01-01
+  user_type: 0
+
+admin_user:
+  email: admin@example.com
+  username: admin_user
+  gender: 1
+  birth_date: 1985-05-05
+  user_type: 1

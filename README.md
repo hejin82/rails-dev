@@ -23,9 +23,9 @@
 | MySQL | 8.4.13 |
 | 应用启动 | `http://localhost:3000/up` 返回 200 |
 | 首页 | `/` 返回 Rails 8.1 + MySQL 页面 |
-| 测试 | `bin/rails test`：2 runs, 8 assertions, 0 failures |
-| 代码检查 | RuboCop：25 files inspected, no offenses |
-| 数据库 | `railsdev_development`、`railsdev_test` 已创建 |
+| 测试 | `bin/rails test`：9 runs, 37 assertions, 0 failures |
+| 代码检查 | RuboCop：32 files inspected, no offenses |
+| 数据库 | `railsdev_development`、`railsdev_test`、`users` 表已创建 |
 | React | 19.3.1，esbuild 打包的 `/assets/application-*.js` 返回 200 |
 | Node / npm | 22.23.4 / 10.9.9 |
 | Ruby LSP | 0.26.11 可用 |
@@ -37,11 +37,18 @@ rails-dev/
 ├─ .devcontainer/
 │  └─ devcontainer.json   # VS Code 连接 Compose 的 web 服务
 ├─ app/
+│  ├─ controllers/
+│  │  ├─ users_controller.rb        # /users 页面
+│  │  └─ api/users_controller.rb    # JSON CRUD API
+│  ├─ models/user.rb
 │  ├─ javascript/
-│  │  ├─ application.js    # Turbo/Stimulus/React 入口
+│  │  ├─ application.js             # Turbo/Stimulus/React 入口
 │  │  ├─ components/App.jsx
+│  │  ├─ components/UsersPage.jsx   # 用户 CRUD 界面
 │  │  └─ controllers/
-│  └─ views/home/index.html.erb
+│  └─ views/
+│     ├─ home/index.html.erb
+│     └─ users/index.html.erb
 ├─ bin/
 │  ├─ rails
 │  ├─ dev                  # 启动 Rails + esbuild watch
@@ -50,11 +57,16 @@ rails-dev/
 │  ├─ database.yml         # 从环境变量读取 DB_HOST/DB_USER 等
 │  └─ routes.rb
 ├─ db/
+│  ├─ migrate/
+│  │  └─ 20261107153837_create_users.rb
 │  ├─ init/
 │  │  └─ 01-create-test-db.sql  # 创建 railsdev_test 并授权
 │  └─ seeds.rb
 ├─ test/
-│  └─ integration/home_test.rb
+│  ├─ integration/home_test.rb
+│  ├─ integration/users_page_test.rb
+│  ├─ integration/users_api_test.rb
+│  └─ models/user_test.rb
 ├─ Dockerfile              # Ruby 3.4 + Node 22 + Rails 依赖
 ├─ compose.yaml            # web + MySQL 8.4
 ├─ package.json / package-lock.json
@@ -190,11 +202,11 @@ password: <%= ENV.fetch("DB_PASSWORD", "rails") %>
 
 ### 前端
 
-- **React 19**：`app/javascript/components/App.jsx`，挂载到首页的 `#react-root`
+- **React 19**：`app/javascript/components/App.jsx` 和 `UsersPage.jsx`
 - **esbuild**：把 `app/javascript/application.js` 打包到 `app/assets/builds/application.js`
 - **Hotwire**：Turbo 和 Stimulus 通过 npm 引入，仍保留
 - **Propshaft**：样式和打包后的 JS 都走 Rails 资源管线
-- 页面仍由 Rails 服务端渲染 ERB；React 只接管 `#react-root` 这一块
+- 页面仍由 Rails 服务端渲染 ERB；React 接管 `#react-root` / `#users-root`
 - 不再使用 Importmap，`config/importmap.rb` 和 `bin/importmap` 已移除
 
 `bin/dev` 会先执行一次 `npm run build`，然后启动 esbuild watch 和 Rails server。单独构建：
@@ -203,6 +215,43 @@ password: <%= ENV.fetch("DB_PASSWORD", "rails") %>
 npm run build
 npm run build:watch
 ```
+
+### 用户管理 CRUD
+
+打开 <http://localhost:3000/users>，页面由 React 渲染，支持：
+
+- 列表查看
+- 新建用户
+- 编辑用户
+- 删除用户（带确认）
+
+字段：
+
+| 字段 | 说明 |
+| --- | --- |
+| `email` | 邮箱，唯一，格式校验 |
+| `username` | 用户名，唯一，最长 50 |
+| `gender` | `male` 男 / `female` 女 / `other` 其他 |
+| `birth_date` | 出生年月日，不能晚于今天 |
+| `user_type` | `normal` 普通用户 / `admin` 管理员 |
+
+JSON API：
+
+| 方法 | 路径 | 说明 |
+| --- | --- | --- |
+| GET | `/api/users` | 用户列表 |
+| GET | `/api/users/:id` | 单个用户 |
+| POST | `/api/users` | 创建（body: `{ "user": {...} }`） |
+| PATCH | `/api/users/:id` | 更新 |
+| DELETE | `/api/users/:id` | 删除 |
+
+修改模型后执行：
+
+```bash
+bin/rails db:migrate
+```
+
+> 当前没有登录和权限控制，`/users` 只适合本机开发；上线前需要加认证，并限制只有管理员能访问。
 
 ### Windows 挂载权限
 
@@ -306,6 +355,7 @@ docker compose up -d
 - `MYSQL_ROOT_PASSWORD=root`、应用密码 `rails` 等配置只适合本机开发
 - 不要提交 `config/master.key`
 - 不要把这个开发容器的 3000 端口直接暴露到公网
+- 用户管理页面目前没有登录/权限控制，不要直接部署到公网
 
 ## 参考
 
