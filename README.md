@@ -23,9 +23,10 @@
 | MySQL | 8.4.13 |
 | 应用启动 | `http://localhost:3000/up` 返回 200 |
 | 首页 | `/` 返回 Rails 8.1 + MySQL 页面 |
-| 测试 | `bin/rails test`：9 runs, 37 assertions, 0 failures |
-| 代码检查 | RuboCop：32 files inspected, no offenses |
+| 测试 | `bin/rails test`：10 runs, 42 assertions, 0 failures |
+| 代码检查 | RuboCop：34 files inspected, no offenses |
 | 数据库 | `railsdev_development`、`railsdev_test`、`users` 表已创建 |
+| 模拟终端 | `/terminal` 返回 200，命令引擎 smoke test 通过 |
 | React | 19.3.1，esbuild 打包的 `/assets/application-*.js` 返回 200 |
 | Node / npm | 22.23.4 / 10.9.9 |
 | Ruby LSP | 0.26.11 可用 |
@@ -39,15 +40,19 @@ rails-dev/
 ├─ app/
 │  ├─ controllers/
 │  │  ├─ users_controller.rb        # /users 页面
+│  │  ├─ terminal_controller.rb     # /terminal 页面
 │  │  └─ api/users_controller.rb    # JSON CRUD API
 │  ├─ models/user.rb
 │  ├─ javascript/
 │  │  ├─ application.js             # Turbo/Stimulus/React 入口
 │  │  ├─ components/App.jsx
 │  │  ├─ components/UsersPage.jsx   # 用户 CRUD 界面
+│  │  ├─ components/TerminalPage.jsx
+│  │  ├─ lib/simulatedTerminal.js  # 前端命令解析
 │  │  └─ controllers/
 │  └─ views/
 │     ├─ home/index.html.erb
+│     ├─ terminal/index.html.erb
 │     └─ users/index.html.erb
 ├─ bin/
 │  ├─ rails
@@ -66,6 +71,7 @@ rails-dev/
 │  ├─ integration/home_test.rb
 │  ├─ integration/users_page_test.rb
 │  ├─ integration/users_api_test.rb
+│  ├─ integration/terminal_page_test.rb
 │  └─ models/user_test.rb
 ├─ Dockerfile              # Ruby 3.4 + Node 22 + Rails 依赖
 ├─ compose.yaml            # web + MySQL 8.4
@@ -202,7 +208,7 @@ password: <%= ENV.fetch("DB_PASSWORD", "rails") %>
 
 ### 前端
 
-- **React 19**：`app/javascript/components/App.jsx` 和 `UsersPage.jsx`
+- **React 19**：`app/javascript/components/App.jsx`、`UsersPage.jsx` 和 `TerminalPage.jsx`
 - **esbuild**：把 `app/javascript/application.js` 打包到 `app/assets/builds/application.js`
 - **Hotwire**：Turbo 和 Stimulus 通过 npm 引入，仍保留
 - **Propshaft**：样式和打包后的 JS 都走 Rails 资源管线
@@ -252,6 +258,36 @@ bin/rails db:migrate
 ```
 
 > 当前没有登录和权限控制，`/users` 只适合本机开发；上线前需要加认证，并限制只有管理员能访问。
+
+### 模拟终端
+
+打开 <http://localhost:3000/terminal>，这是一个纯浏览器端的模拟终端，适合演示命令和文件系统交互。
+
+支持的常用命令：
+
+```text
+help              查看帮助
+pwd               当前目录
+ls [path]         列出目录
+cd [path]         切换目录
+cat <file>        查看文件
+echo <text>       输出文本
+date              当前时间
+whoami            当前用户
+uname -a          模拟系统信息
+ruby -v           Ruby 版本
+rails -v          Rails 版本
+rails routes      示例路由
+node -v / npm -v  Node/npm 版本
+mysql --version   MySQL 版本
+history           命令历史
+clear             清屏
+exit              退出提示
+```
+
+支持 `↑` / `↓` 浏览历史命令，`Ctrl+L` 清屏。
+
+> 这是**前端模拟**：命令只在浏览器内存中的虚拟文件系统里执行，不会调用服务器 shell，也不会执行 `rm`、`sudo` 等真实操作。
 
 ### Windows 挂载权限
 
@@ -356,6 +392,7 @@ docker compose up -d
 - 不要提交 `config/master.key`
 - 不要把这个开发容器的 3000 端口直接暴露到公网
 - 用户管理页面目前没有登录/权限控制，不要直接部署到公网
+- `/terminal` 是前端模拟终端，不会在服务器执行命令；不要把它改成真实的 Web Shell 暴露到公网
 
 ## 参考
 

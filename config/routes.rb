@@ -4,6 +4,7 @@ Rails.application.routes.draw do
   get "up" => "rails/health#show", as: :rails_health_check
 
   resources :users, only: :index
+  get "terminal", to: "terminal#index", as: :terminal
 
   namespace :api do
     resources :users, only: %i[index show create update destroy]

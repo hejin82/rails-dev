@@ -5,6 +5,7 @@ import React from "react"
 import { createRoot } from "react-dom/client"
 import App from "./components/App"
 import UsersPage from "./components/UsersPage"
+import TerminalPage from "./components/TerminalPage"
 
 const mountComponent = (id, Component) => {
   const container = document.getElementById(id)
@@ -17,6 +18,7 @@ const mountComponent = (id, Component) => {
 const mountReact = () => {
   mountComponent("react-root", App)
   mountComponent("users-root", UsersPage)
+  mountComponent("terminal-root", TerminalPage)
 }
 
 document.addEventListener("turbo:load", mountReact)
