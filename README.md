@@ -34,6 +34,7 @@ rails-dev/
 ├─ app/                   # Rails 应用代码
 ├─ bin/
 │  ├─ rails
+│  ├─ importmap
 │  └─ docker-entrypoint   # 修复 Windows 挂载权限 + bundle/db 准备
 ├─ config/
 │  ├─ database.yml        # 从环境变量读取 DB_HOST/DB_USER 等
@@ -172,6 +173,14 @@ port: <%= ENV.fetch("DB_PORT", 3306) %>
 username: <%= ENV.fetch("DB_USER", "rails") %>
 password: <%= ENV.fetch("DB_PASSWORD", "rails") %>
 ```
+
+### 前端
+
+- **Hotwire**：Turbo + Stimulus，Rails 默认的全栈前端方案
+- **Importmap**：`config/importmap.rb` 管理 JS 模块，不需要 Node/npm
+- **Propshaft**：静态资源管线，样式在 `app/assets/stylesheets/application.css`
+- 页面是 Rails 服务端渲染的 ERB，不是 React/Vue SPA
+- `app/javascript/application.js` 引入 Turbo 和 Stimulus controllers
 
 ### Windows 挂载权限
 

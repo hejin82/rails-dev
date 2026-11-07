@@ -49,7 +49,7 @@ RUN bundle install
 # Application code. In development Compose mounts the project over /rails,
 # but keeping a copy here keeps the image usable for one-off tasks.
 COPY --chown=vscode:vscode . .
-RUN chmod +x bin/rails bin/rake bin/docker-entrypoint
+RUN chmod +x bin/*
 
 EXPOSE 3000
 
