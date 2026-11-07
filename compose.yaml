@@ -8,6 +8,7 @@ services:
     volumes:
       - .:/rails
       - bundle:/home/vscode/.bundle
+      - node_modules:/rails/node_modules
     ports:
       - "3000:3000"
     environment:
@@ -21,7 +22,7 @@ services:
       db:
         condition: service_healthy
     init: true
-    command: ["bundle", "exec", "rails", "server", "-b", "0.0.0.0"]
+    command: ["bash", "bin/dev"]
     healthcheck:
       test: ["CMD-SHELL", "curl -fsS http://localhost:3000/up || exit 1"]
       interval: 10s
@@ -49,3 +50,4 @@ services:
 volumes:
   bundle:
   mysqldata:
+  node_modules:

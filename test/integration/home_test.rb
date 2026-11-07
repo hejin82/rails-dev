@@ -5,6 +5,8 @@ class HomeTest < ActionDispatch::IntegrationTest
     get "/"
     assert_response :success
     assert_includes response.body, "Rails 8.1"
+    assert_includes response.body, 'id="react-root"'
+    assert_includes response.body, 'type="module"'
   end
 
   test "health endpoint responds" do

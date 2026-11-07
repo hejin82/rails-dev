@@ -5,6 +5,46 @@
  * application-wide styles in this file, but keep in mind that CSS precedence will follow the standard
  * cascading order, meaning styles declared later in the document or manifest will override earlier ones,
  * depending on specificity.
- *
- * Consider organizing styles into separate files for maintainability.
  */
+
+body {
+  font-family: system-ui, sans-serif;
+  margin: 3rem auto;
+  max-width: 48rem;
+  line-height: 1.6;
+  padding: 0 1.25rem;
+}
+
+code {
+  background: #f3f3f3;
+  border-radius: 4px;
+  padding: 0.15rem 0.35rem;
+}
+
+.stimulus-card,
+.react-card {
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  margin-top: 1.5rem;
+  padding: 1rem 1.25rem;
+}
+
+.stimulus-card input {
+  border: 1px solid #bbb;
+  border-radius: 4px;
+  padding: 0.35rem 0.5rem;
+}
+
+.stimulus-card button,
+.react-card button {
+  background: #1f6feb;
+  border: 0;
+  border-radius: 4px;
+  color: #fff;
+  cursor: pointer;
+  padding: 0.4rem 0.8rem;
+}
+
+.react-card {
+  background: #f8fbff;
+}

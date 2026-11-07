@@ -1,4 +1,4 @@
-# Rails 开发环境（Docker + MySQL + VS Code Dev Containers）
+# Rails + React 开发环境（Docker + MySQL + VS Code Dev Containers）
 
 这是一个独立的 Rails 8.1 项目，和 `java-dev`、`python-gpu` 以及现有的 Python 分析脚本互不影响。
 
@@ -7,7 +7,10 @@
 - Ruby 3.4.12
 - Rails 8.1.4.1
 - MySQL 8.4
-- Puma + Propshaft + Importmap + Hotwire
+- Puma + Propshaft + esbuild
+- React 19 + React DOM
+- Hotwire Turbo + Stimulus（通过 npm 引入）
+- Node.js 22 + npm
 - VS Code Dev Containers + Ruby LSP
 
 ## 本机验证结果（2026-11-07）
@@ -20,9 +23,11 @@
 | MySQL | 8.4.13 |
 | 应用启动 | `http://localhost:3000/up` 返回 200 |
 | 首页 | `/` 返回 Rails 8.1 + MySQL 页面 |
-| 测试 | `bin/rails test`：2 runs, 4 assertions, 0 failures |
+| 测试 | `bin/rails test`：2 runs, 8 assertions, 0 failures |
 | 代码检查 | RuboCop：25 files inspected, no offenses |
 | 数据库 | `railsdev_development`、`railsdev_test` 已创建 |
+| React | 19.3.1，esbuild 打包的 `/assets/application-*.js` 返回 200 |
+| Node / npm | 22.23.4 / 10.9.9 |
 | Ruby LSP | 0.26.11 可用 |
 
 ## 目录结构（关键文件）
@@ -31,13 +36,18 @@
 rails-dev/
 ├─ .devcontainer/
 │  └─ devcontainer.json   # VS Code 连接 Compose 的 web 服务
-├─ app/                   # Rails 应用代码
+├─ app/
+│  ├─ javascript/
+│  │  ├─ application.js    # Turbo/Stimulus/React 入口
+│  │  ├─ components/App.jsx
+│  │  └─ controllers/
+│  └─ views/home/index.html.erb
 ├─ bin/
 │  ├─ rails
-│  ├─ importmap
-│  └─ docker-entrypoint   # 修复 Windows 挂载权限 + bundle/db 准备
+│  ├─ dev                  # 启动 Rails + esbuild watch
+│  └─ docker-entrypoint    # 修复 Windows 挂载权限 + bundle/db 准备
 ├─ config/
-│  ├─ database.yml        # 从环境变量读取 DB_HOST/DB_USER 等
+│  ├─ database.yml         # 从环境变量读取 DB_HOST/DB_USER 等
 │  └─ routes.rb
 ├─ db/
 │  ├─ init/
@@ -45,8 +55,9 @@ rails-dev/
 │  └─ seeds.rb
 ├─ test/
 │  └─ integration/home_test.rb
-├─ Dockerfile             # Ruby 3.4 + Rails 依赖 + vscode 用户
-├─ compose.yaml           # web + MySQL 8.4
+├─ Dockerfile              # Ruby 3.4 + Node 22 + Rails 依赖
+├─ compose.yaml            # web + MySQL 8.4
+├─ package.json / package-lock.json
 ├─ Gemfile / Gemfile.lock
 ├─ .dockerignore
 ├─ .gitattributes
@@ -82,7 +93,7 @@ VS Code 会用 `compose.yaml` 启动两个服务：
 - `web`：Rails + Puma，监听 3000
 - `db`：MySQL 8.4
 
-首次会构建镜像并安装全部 gem（100+），之后启动会复用 `bundle` 卷，速度快很多。
+首次会构建镜像并安装全部 gem（100+）和 npm 依赖，之后启动会复用 `bundle` / `node_modules` 卷，速度快很多。
 左下角显示 `Dev Container: Rails 8.1 + MySQL 8.4`。
 
 ### 4. 验证
@@ -142,25 +153,28 @@ docker compose exec web bin/rails console
 # 进入 MySQL
 docker compose exec db mysql -u rails -prails railsdev_development
 
-# 停止（保留数据库和 bundle 卷）
+# 停止（保留数据库、bundle、node_modules 卷）
 docker compose down
 ```
 
-`docker compose down -v` 会同时删除数据库数据和 bundle 卷，谨慎使用。
+`docker compose down -v` 会同时删除数据库数据、bundle 和 node_modules 卷，谨慎使用。
 
 ## 环境是怎么工作的
 
 ### Dockerfile
 
 - 基于 `ruby:3.4-bookworm`
+- 从 `node:22-bookworm-slim` 复制 Node/npm
 - 安装 `build-essential`、`default-libmysqlclient-dev`、`default-mysql-client` 等
 - 创建非 root 用户 `vscode`（UID 1000）
-- 先复制 `Gemfile`/`Gemfile.lock` 并 `bundle install`，再复制应用代码，利用 Docker 层缓存
-- `BUNDLE_PATH=/home/vscode/.bundle`，由 Compose 的 `bundle` 命名卷持久化
+- 先复制 `Gemfile`/`package*.json` 并安装依赖，再复制应用代码，利用 Docker 层缓存
+- `bundle install` + `npm ci` + `npm run build`
+- `BUNDLE_PATH=/home/vscode/.bundle` 和 `node_modules` 分别由 Compose 命名卷持久化
 
 ### Compose
 
 - `web` 挂载当前项目到 `/rails`，改代码立即生效
+- `node_modules` 使用命名卷，避免 Windows bind mount 的 npm 性能问题
 - `db` 使用 `mysql:8.4`，数据在 `mysqldata` 卷
 - 首次初始化时，`db/init/01-create-test-db.sql` 会创建 `railsdev_test` 并授权给 `rails` 用户
 - `web` 等待 `db` 的 healthcheck 通过后再启动
@@ -176,11 +190,19 @@ password: <%= ENV.fetch("DB_PASSWORD", "rails") %>
 
 ### 前端
 
-- **Hotwire**：Turbo + Stimulus，Rails 默认的全栈前端方案
-- **Importmap**：`config/importmap.rb` 管理 JS 模块，不需要 Node/npm
-- **Propshaft**：静态资源管线，样式在 `app/assets/stylesheets/application.css`
-- 页面是 Rails 服务端渲染的 ERB，不是 React/Vue SPA
-- `app/javascript/application.js` 引入 Turbo 和 Stimulus controllers
+- **React 19**：`app/javascript/components/App.jsx`，挂载到首页的 `#react-root`
+- **esbuild**：把 `app/javascript/application.js` 打包到 `app/assets/builds/application.js`
+- **Hotwire**：Turbo 和 Stimulus 通过 npm 引入，仍保留
+- **Propshaft**：样式和打包后的 JS 都走 Rails 资源管线
+- 页面仍由 Rails 服务端渲染 ERB；React 只接管 `#react-root` 这一块
+- 不再使用 Importmap，`config/importmap.rb` 和 `bin/importmap` 已移除
+
+`bin/dev` 会先执行一次 `npm run build`，然后启动 esbuild watch 和 Rails server。单独构建：
+
+```bash
+npm run build
+npm run build:watch
+```
 
 ### Windows 挂载权限
 
@@ -212,6 +234,25 @@ bundle install
 ```powershell
 docker compose build
 docker compose up -d
+```
+
+## 添加 npm 包
+
+```bash
+npm install 某个包
+```
+
+`package.json` 和 `package-lock.json` 会写回项目目录，包安装在 `node_modules` 卷里。
+安装后重启 `web` 或重新执行 `bin/dev`，让 esbuild 重新打包：
+
+```powershell
+docker compose restart web
+```
+
+提交 `package.json` / `package-lock.json` 后重建镜像，确保新环境也带上依赖：
+
+```powershell
+docker compose build
 ```
 
 ## 自定义
@@ -251,8 +292,12 @@ docker compose up -d
 | `bin/rails: bad interpreter` 或 `\r` 错误 | Windows 换行导致。确认 `.gitattributes` 生效，或执行 `dos2unix bin/*` |
 | `rails: command not found` | 用 `bin/rails` 或 `bundle exec rails`；不要直接依赖系统 PATH |
 | `bundle: command not found` | 确认在 `web` 容器里，且镜像构建完整；执行 `docker compose exec web bundle -v` |
-| Dev Containers 一直停在构建 | 首次要装 100+ 个 gem；看 VS Code 的 Dev Containers 日志，或先 `docker compose build` |
+| Dev Containers 一直停在构建 | 首次要装 100+ 个 gem 和 npm 依赖；看 VS Code 的 Dev Containers 日志，或先 `docker compose build` |
 | 改了 Gemfile 但容器里找不到新 gem | 在容器里 `bundle install`；或重建镜像 `docker compose build` |
+| 改了 React/JS 但页面没变化 | 确认 esbuild watch 在跑；`docker compose logs -f web` 看 `[watch] build finished`，或执行 `npm run build` |
+| `Cannot use import statement outside a module` | `javascript_include_tag` 必须带 `type: "module"`；当前 layout 已配置 |
+| `esbuild: command not found` | `node_modules` 卷未初始化。执行 `npm ci`，或 `docker compose build` 后重启 |
+| `stale_when_importmap_changes` NameError | 已从 `ApplicationController` 移除；如果自行生成旧模板，删掉这一行 |
 | 系统测试 `test:system` 失败 | 镜像没有安装 Chrome/Chromedriver；本项目只验证普通 Minitest。需要系统测试时另加浏览器 |
 | `master.key` 相关错误 | 开发环境使用项目里的 `config/master.key`（已 gitignore）。确认用 Compose 挂载项目启动，而不是单独 `docker run` 镜像 |
 

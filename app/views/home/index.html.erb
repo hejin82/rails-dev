@@ -7,3 +7,12 @@
 <p>Rails 版本：<code><%= Rails.version %></code></p>
 
 <p>Ruby 版本：<code><%= RUBY_VERSION %></code></p>
+
+<div class="stimulus-card" data-controller="hello">
+  <h2>Stimulus 示例</h2>
+  <input data-hello-target="name" type="text" placeholder="输入名字">
+  <button type="button" data-action="click->hello#greet">打招呼</button>
+  <p data-hello-target="output"></p>
+</div>
+
+<div id="react-root"></div>

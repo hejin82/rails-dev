@@ -2,6 +2,7 @@
 .github
 .bundle
 node_modules
+app/assets/builds
 log/*
 tmp/*
 storage/*

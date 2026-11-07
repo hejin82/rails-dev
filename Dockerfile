@@ -1,3 +1,5 @@
+FROM node:22-bookworm-slim AS node
+
 FROM ruby:3.4-bookworm
 
 ARG USERNAME=vscode
@@ -29,6 +31,15 @@ RUN apt-get update \
         vim \
     && rm -rf /var/lib/apt/lists/*
 
+# Node/npm are used by esbuild and React. Copy them from the official Node image
+# instead of adding a NodeSource apt repository.
+COPY --from=node /usr/local/bin/node /usr/local/bin/node
+COPY --from=node /usr/local/lib/node_modules /usr/local/lib/node_modules
+RUN ln -sf /usr/local/lib/node_modules/npm/bin/npm-cli.js /usr/local/bin/npm \
+    && ln -sf /usr/local/lib/node_modules/npm/bin/npx-cli.js /usr/local/bin/npx \
+    && node --version \
+    && npm --version
+
 RUN groupadd --gid "${USER_GID}" "${USERNAME}" \
     && useradd --uid "${USER_UID}" --gid "${USER_GID}" \
         --create-home --shell /bin/bash "${USERNAME}" \
@@ -41,17 +52,20 @@ ENV HOME=/home/${USERNAME}
 
 WORKDIR /rails
 
-# Install gems first so application code changes do not invalidate this layer.
-COPY --chown=vscode:vscode Gemfile Gemfile.lock ./
+# Install gems and npm packages first so application code changes do not
+# invalidate these layers.
+COPY --chown=vscode:vscode Gemfile Gemfile.lock package.json package-lock.json ./
 USER vscode
-RUN bundle install
+RUN bundle install \
+    && npm ci
 
 # Application code. In development Compose mounts the project over /rails,
 # but keeping a copy here keeps the image usable for one-off tasks.
 COPY --chown=vscode:vscode . .
-RUN chmod +x bin/*
+RUN npm run build \
+    && chmod +x bin/*
 
 EXPOSE 3000
 
 ENTRYPOINT ["/rails/bin/docker-entrypoint"]
-CMD ["bundle", "exec", "rails", "server", "-b", "0.0.0.0"]
+CMD ["bash", "bin/dev"]
