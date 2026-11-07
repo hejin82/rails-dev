@@ -1,0 +1,18 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# Docker Desktop bind mounts from Windows can appear as root-owned. Fix the
+# ownership once, then run the actual command as the vscode user.
+if [ "$(stat -c '%u' /rails)" != "$(id -u)" ] || [ "$(stat -c '%u' /rails/Gemfile.lock)" != "$(id -u)" ]; then
+  sudo chown -R "$(id -un):$(id -gn)" /rails
+fi
+
+rm -f /rails/tmp/pids/server.pid
+
+bundle check || bundle install
+
+if [ "${RAILS_ENV:-development}" = "development" ]; then
+  bundle exec rails db:prepare
+fi
+
+exec "$@"

@@ -1,0 +1,51 @@
+services:
+  web:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: rails-dev:latest
+    working_dir: /rails
+    volumes:
+      - .:/rails
+      - bundle:/home/vscode/.bundle
+    ports:
+      - "3000:3000"
+    environment:
+      DB_HOST: db
+      DB_PORT: "3306"
+      DB_USER: rails
+      DB_PASSWORD: rails
+      RAILS_ENV: development
+      RAILS_MAX_THREADS: "5"
+    depends_on:
+      db:
+        condition: service_healthy
+    init: true
+    command: ["bundle", "exec", "rails", "server", "-b", "0.0.0.0"]
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://localhost:3000/up || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+
+  db:
+    image: mysql:8.4
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_DATABASE: railsdev_development
+      MYSQL_USER: rails
+      MYSQL_PASSWORD: rails
+    volumes:
+      - mysqldata:/var/lib/mysql
+      - ./db/init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "mysqladmin ping -h 127.0.0.1 -u root -p$$MYSQL_ROOT_PASSWORD --silent"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+      start_period: 30s
+
+volumes:
+  bundle:
+  mysqldata:

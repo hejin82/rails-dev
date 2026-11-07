@@ -1,0 +1,47 @@
+# See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
+
+# Ignore bundler config.
+/.bundle
+
+# Ignore all logfiles and tempfiles.
+/log/*
+/tmp/*
+!/log/.keep
+!/tmp/.keep
+
+# Ignore pidfiles, but keep the directory.
+/tmp/pids/*
+!/tmp/pids/
+!/tmp/pids/.keep
+
+# Ignore uploaded files in development.
+/storage/*
+!/storage/.keep
+/tmp/storage/*
+!/tmp/storage/
+!/tmp/storage/.keep
+
+# Ignore precompiled assets.
+/public/assets
+/app/assets/builds/*
+!/app/assets/builds/.keep
+
+# Ignore master key for decrypting credentials and more.
+/config/master.key
+
+# Ignore environment files.
+/.env
+/.env.*
+
+# Ignore node modules and yarn logs.
+/node_modules
+/yarn-error.log
+/.yarn
+
+# Ignore test coverage and local caches.
+/coverage/
+/.byebug_history
+
+# OS metadata.
+.DS_Store
+Thumbs.db

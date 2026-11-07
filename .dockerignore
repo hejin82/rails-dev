@@ -1,0 +1,12 @@
+.git
+.github
+.bundle
+node_modules
+log/*
+tmp/*
+storage/*
+coverage
+config/master.key
+.env
+README.md
+build.log
